@@ -66,25 +66,61 @@ const seedMockData = () => {
     created_at: new Date().toISOString(),
   });
 
-  // 2. Profile
-  mockDb.profiles.push({
-    id: 'mock-user-owner-123',
-    tenant_id: tId,
-    email: 'owner@stitchbill.com',
-    full_name: 'Sarah Jenkins',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-    role: 'tenant_owner',
-    created_at: new Date().toISOString(),
-  });
+  // 2. Profiles for all roles
+  mockDb.profiles.push(
+    {
+      id: 'mock-user-owner-123',
+      tenant_id: tId,
+      email: 'owner@stitchbill.com',
+      full_name: 'Sarah Jenkins',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      role: 'tenant_owner',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-user-warehouse-123',
+      tenant_id: tId,
+      email: 'warehouse@stitchbill.com',
+      full_name: 'Marcus Brody (HQ Manager)',
+      avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      role: 'warehouse_manager',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-user-cashier-123',
+      tenant_id: tId,
+      email: 'cashier@stitchbill.com',
+      full_name: 'Tina Fey (Cashier)',
+      avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      role: 'staff',
+      created_at: new Date().toISOString(),
+    }
+  );
 
-  // 3. User Role
-  mockDb.user_roles.push({
-    id: 'mock-role-1',
-    tenant_id: tId,
-    profile_id: 'mock-user-owner-123',
-    role: 'tenant_owner',
-    created_at: new Date().toISOString(),
-  });
+  // 3. User Roles Mapping
+  mockDb.user_roles.push(
+    {
+      id: 'mock-role-1',
+      tenant_id: tId,
+      profile_id: 'mock-user-owner-123',
+      role: 'tenant_owner',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-role-2',
+      tenant_id: tId,
+      profile_id: 'mock-user-warehouse-123',
+      role: 'warehouse_manager',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-role-3',
+      tenant_id: tId,
+      profile_id: 'mock-user-cashier-123',
+      role: 'staff',
+      created_at: new Date().toISOString(),
+    }
+  );
 
   // 4. Shops (1 Central Warehouse, 2 Shops)
   const warehouseId = 'mock-shop-warehouse';

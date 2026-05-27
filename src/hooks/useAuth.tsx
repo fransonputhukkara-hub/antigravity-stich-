@@ -147,8 +147,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[StitchBill Auth] Shops loaded:', shopsData);
         setShops(shopsData);
         if (shopsData.length > 0) {
-          const defaultShop = shopsData.find((s: Shop) => s.is_warehouse) || shopsData[0];
-          console.log('[StitchBill Auth] Default active shop set:', defaultShop.name);
+          let defaultShop = shopsData.find((s: Shop) => s.is_warehouse) || shopsData[0];
+          
+          // Role-specific shop assignment locks
+          if (profileData.role === 'warehouse_manager') {
+            defaultShop = shopsData.find((s: Shop) => s.is_warehouse) || defaultShop;
+          } else if (profileData.role === 'staff') {
+            defaultShop = shopsData.find((s: Shop) => !s.is_warehouse) || defaultShop;
+          }
+          
+          console.log('[StitchBill Auth] Default active shop set:', defaultShop.name, 'for role:', profileData.role);
           setCurrentShopState(defaultShop);
         }
       }

@@ -149,6 +149,40 @@ const AuthPage = () => {
           </button>
         </form>
 
+        {isLogin && (
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--border-color)' }}>
+            <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.75rem', textAlign: 'center' }}>
+              ⚡ Developer Testing Quick-Login
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button 
+                type="button"
+                className="btn btn-secondary w-full"
+                onClick={() => { setEmail('owner@stitchbill.com'); setPassword('password123'); }}
+                style={{ justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: '#f8fafc', borderColor: 'rgba(59,91,255,0.1)' }}
+              >
+                👑 <strong>Owner Admin:</strong> owner@stitchbill.com
+              </button>
+              <button 
+                type="button"
+                className="btn btn-secondary w-full"
+                onClick={() => { setEmail('warehouse@stitchbill.com'); setPassword('password123'); }}
+                style={{ justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: '#fffbeb', borderColor: 'rgba(217,119,6,0.1)' }}
+              >
+                📦 <strong>Warehouse Manager:</strong> warehouse@stitchbill.com
+              </button>
+              <button 
+                type="button"
+                className="btn btn-secondary w-full"
+                onClick={() => { setEmail('cashier@stitchbill.com'); setPassword('password123'); }}
+                style={{ justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: '#ecfdf5', borderColor: 'rgba(4,120,87,0.1)' }}
+              >
+                🛒 <strong>Retail Cashier:</strong> cashier@stitchbill.com
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="text-center mt-6">
           <button className="btn btn-ghost w-full" style={{ fontSize: '0.85rem' }} onClick={() => { setIsLogin(!isLogin); setErrorMsg(null); }}>
             {isLogin ? "New to StitchBill? Create an account" : "Already registered? Sign in to workspace"}
@@ -383,57 +417,89 @@ const DashboardShell = () => {
           </div>
         </div>
 
-        {/* Dynamic Branch Selector */}
+        {/* Dynamic Branch Selector (Only allowed for Tenant Owner) */}
         {shops.length > 0 && (
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
               <Store size={12} /> Active Location
             </label>
-            <div style={{ position: 'relative' }}>
-              <select 
-                className="form-input w-full" 
-                value={currentShop?.id || ''} 
-                onChange={e => {
-                  const target = shops.find(s => s.id === e.target.value);
-                  if (target) setCurrentShop(target);
-                }}
-                style={{ 
-                  padding: '0.5rem 2.25rem 0.5rem 0.75rem', 
-                  fontSize: '0.825rem',
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid var(--border-color)'
-                }}
-              >
-                {shops.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} {s.is_warehouse ? '(HQ)' : ''}</option>
-                ))}
-              </select>
-            </div>
+            {profile?.role === 'tenant_owner' ? (
+              <div style={{ position: 'relative' }}>
+                <select 
+                  className="form-input w-full" 
+                  value={currentShop?.id || ''} 
+                  onChange={e => {
+                    const target = shops.find(s => s.id === e.target.value);
+                    if (target) setCurrentShop(target);
+                  }}
+                  style={{ 
+                    padding: '0.5rem 2.25rem 0.5rem 0.75rem', 
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
+                  {shops.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} {s.is_warehouse ? '(HQ)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{
+                padding: '0.65rem 0.85rem',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                borderRadius: '8px',
+                background: currentShop?.is_warehouse ? 'var(--warning-glow)' : 'var(--primary-glow)',
+                color: currentShop?.is_warehouse ? 'var(--warning)' : 'var(--primary)',
+                border: '1px solid currentColor',
+                opacity: 0.9,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <Store size={14} /> {currentShop?.name || 'Assigned Branch'}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Links Navigation */}
+        {/* Dynamic Sidebar Links Navigation (Warehouse HQ vs Retail Outlet Branch) */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto' }}>
           <Link to="/" className="btn btn-ghost" style={getNavStyle('/')}>
             <LayoutDashboard size={18} /> Overview
           </Link>
-          <Link to="/billing" className="btn btn-ghost" style={getNavStyle('/billing')}>
-            <ShoppingBag size={18} /> POS Billing
-          </Link>
-          <Link to="/inventory" className="btn btn-ghost" style={getNavStyle('/inventory')}>
-            <Package size={18} /> Inventory Catalog
-          </Link>
-          <Link to="/purchases" className="btn btn-ghost" style={getNavStyle('/purchases')}>
-            <Truck size={18} /> Purchases
-          </Link>
-          <Link to="/customers" className="btn btn-ghost" style={getNavStyle('/customers')}>
-            <Users size={18} /> Customers
-          </Link>
-          <Link to="/reports" className="btn btn-ghost" style={getNavStyle('/reports')}>
-            <BarChart3 size={18} /> Reports & Analytics
-          </Link>
+          
+          {currentShop?.is_warehouse ? (
+            /* WAREHOUSE HQ MODE - Core Logistics & Flow Only */
+            <>
+              <Link to="/purchases" className="btn btn-ghost" style={getNavStyle('/purchases')}>
+                <Truck size={18} /> Purchases & Logistics
+              </Link>
+              <Link to="/reports" className="btn btn-ghost" style={getNavStyle('/reports')}>
+                <BarChart3 size={18} /> Flow & Reports
+              </Link>
+            </>
+          ) : (
+            /* RETAIL OUTLET BRANCH MODE - Billing, POS, Local Catalog & Expenses/Payroll */
+            <>
+              <Link to="/billing" className="btn btn-ghost" style={getNavStyle('/billing')}>
+                <ShoppingBag size={18} /> POS Billing
+              </Link>
+              <Link to="/inventory" className="btn btn-ghost" style={getNavStyle('/inventory')}>
+                <Package size={18} /> Inventory Catalog
+              </Link>
+              <Link to="/customers" className="btn btn-ghost" style={getNavStyle('/customers')}>
+                <Users size={18} /> Customers Directory
+              </Link>
+              <Link to="/reports" className="btn btn-ghost" style={getNavStyle('/reports')}>
+                <BarChart3 size={18} /> Expenses & Reports
+              </Link>
+            </>
+          )}
+
           <Link to="/settings" className="btn btn-ghost" style={getNavStyle('/settings')}>
             <SettingsIcon size={18} /> Settings
           </Link>

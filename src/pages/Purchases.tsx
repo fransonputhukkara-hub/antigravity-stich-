@@ -12,12 +12,13 @@ interface PurchaseLine {
 }
 
 export const PurchasesPage = () => {
-  const { tenant, currentShop } = useAuth();
-  const [activeTab, setActiveTab] = useState<'entry' | 'history' | 'return'>('entry');
+  const { tenant, currentShop, shops } = useAuth();
+  const [activeTab, setActiveTab] = useState<'entry' | 'history' | 'return' | 'transfer' | 'flow'>('entry');
 
   // Common State
   const [inventoryList, setInventoryList] = useState<InventoryItem[]>([]);
   const [purchaseEntries, setPurchaseEntries] = useState<PurchaseEntry[]>([]);
+  const [globalInventory, setGlobalInventory] = useState<any[]>([]);
 
   // Purchase Entry State
   const [supplierName, setSupplierName] = useState('');
@@ -38,9 +39,20 @@ export const PurchasesPage = () => {
   const [isSavingReturn, setIsSavingReturn] = useState(false);
   const [returnSuccessMsg, setReturnSuccessMsg] = useState<string | null>(null);
 
+  // Stock Transfer State
+  const [transferItemId, setTransferItemId] = useState('');
+  const [transferQty, setTransferQty] = useState(10);
+  const [targetShopId, setTargetShopId] = useState('');
+  const [isSavingTransfer, setIsSavingTransfer] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
+
   const loadData = async () => {
     if (!currentShop) return;
     try {
+      // Initialize destination shop ID
+      const firstDestShop = shops.find(s => s.id !== currentShop.id);
+      if (firstDestShop) setTargetShopId(firstDestShop.id);
+
       // 1. Fetch Inventory items
       const { data: inv } = await supabase
         .from('inventory')
@@ -48,7 +60,10 @@ export const PurchasesPage = () => {
         .eq('shop_id', currentShop.id);
       if (inv) {
         setInventoryList(inv);
-        if (inv.length > 0) setSelectedInventoryId(inv[0].id);
+        if (inv.length > 0) {
+          setSelectedInventoryId(inv[0].id);
+          setTransferItemId(inv[0].id);
+        }
       }
 
       // 2. Fetch Purchase History entries
@@ -59,6 +74,14 @@ export const PurchasesPage = () => {
       if (pur) {
         setPurchaseEntries(pur);
         if (pur.length > 0) setSelectedPurchaseId(pur[0].id);
+      }
+
+      // 3. Fetch Global Inventory for Flow Analysis
+      const { data: globalInv } = await supabase
+        .from('inventory')
+        .select('*');
+      if (globalInv) {
+        setGlobalInventory(globalInv);
       }
     } catch (e) {
       console.error(e);
@@ -196,6 +219,82 @@ export const PurchasesPage = () => {
     }
   };
 
+  // SAVE STOCK TRANSFER FROM WAREHOUSE TO RETAIL OUTLET
+  const handleStockTransfer = async () => {
+    if (!transferItemId || !targetShopId || transferQty <= 0) {
+      alert('Please select a catalog product, destination branch outlet, and enter a valid quantity.');
+      return;
+    }
+    const warehouseItem = inventoryList.find(it => it.id === transferItemId);
+    if (!warehouseItem) return;
+
+    if (warehouseItem.quantity < transferQty) {
+      alert(`Insufficient stock in warehouse! Only ${warehouseItem.quantity} units are available of "${warehouseItem.name}".`);
+      return;
+    }
+
+    setIsSavingTransfer(true);
+    setTransferSuccess(null);
+
+    try {
+      // 1. Deduct quantity from warehouse inventory
+      const { error: deductErr } = await supabase
+        .from('inventory')
+        .update({ quantity: warehouseItem.quantity - transferQty })
+        .eq('id', transferItemId);
+
+      if (deductErr) throw deductErr;
+
+      // 2. Fetch target shop inventory to see if product exists there
+      const { data: destInv, error: fetchErr } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('shop_id', targetShopId);
+
+      if (fetchErr) throw fetchErr;
+
+      const matchingDestItem = destInv?.find(
+        (it: any) => (it.sku && it.sku === warehouseItem.sku) || it.name.toLowerCase() === warehouseItem.name.toLowerCase()
+      );
+
+      if (matchingDestItem) {
+        // Increment quantity of existing item in target store
+        const { error: updateErr } = await supabase
+          .from('inventory')
+          .update({ quantity: matchingDestItem.quantity + transferQty })
+          .eq('id', matchingDestItem.id);
+        
+        if (updateErr) throw updateErr;
+      } else {
+        // Provision new inventory entry in the destination store catalog
+        const { error: insertErr } = await supabase
+          .from('inventory')
+          .insert({
+            tenant_id: tenant?.id,
+            shop_id: targetShopId,
+            name: warehouseItem.name,
+            sku: warehouseItem.sku || null,
+            barcode: warehouseItem.barcode || null,
+            buying_price: warehouseItem.buying_price,
+            selling_price: warehouseItem.selling_price,
+            quantity: transferQty,
+            min_quantity_alert: warehouseItem.min_quantity_alert || 5
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      setTransferSuccess(`Successfully distributed ${transferQty} units of "${warehouseItem.name}" to the destination shop branch!`);
+      setTransferQty(10);
+      loadData();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to execute stock distribution transfer.');
+    } finally {
+      setIsSavingTransfer(false);
+    }
+  };
+
   // EXCEL EXPORT SCRIPT
   const handleExportCSV = () => {
     if (purchaseEntries.length === 0) return;
@@ -226,7 +325,7 @@ export const PurchasesPage = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button className={`btn ${activeTab === 'entry' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('entry')}>
             <Truck size={18} /> New Purchase Entry
           </button>
@@ -236,6 +335,17 @@ export const PurchasesPage = () => {
           <button className={`btn ${activeTab === 'return' ? 'btn-danger' : 'btn-secondary'}`} onClick={() => setActiveTab('return')}>
             <ArrowLeftRight size={18} /> Supplier Returns
           </button>
+          
+          {currentShop?.is_warehouse && (
+            <>
+              <button className={`btn ${activeTab === 'transfer' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('transfer')} style={{ background: activeTab === 'transfer' ? 'var(--primary)' : 'var(--primary-glow)', color: 'var(--primary)', borderColor: 'rgba(59, 91, 255, 0.2)' }}>
+                <ArrowLeftRight size={18} /> Stock Distribution Transfer
+              </button>
+              <button className={`btn ${activeTab === 'flow' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('flow')} style={{ background: activeTab === 'flow' ? 'var(--primary)' : 'var(--success-glow)', color: activeTab === 'flow' ? '#ffffff' : 'var(--success)', borderColor: 'rgba(4, 120, 87, 0.2)' }}>
+                <Truck size={18} /> Product Flow Analysis
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -411,7 +521,7 @@ export const PurchasesPage = () => {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'return' ? (
         /* ==================== SUPPLIER RETURNS ==================== */
         <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem', background: '#ffffff' }}>
           <h2 className="text-gradient" style={{ fontSize: '1.35rem', fontWeight: 800 }}>Return Damaged Stock to Suppliers</h2>
@@ -468,6 +578,102 @@ export const PurchasesPage = () => {
           <button className="btn btn-danger w-full mt-2" onClick={handleSavePurchaseReturn} disabled={isSavingReturn || !selectedReturnItemId}>
             {isSavingReturn ? 'Processing Return...' : 'Replenish Supplier Credit & Deduct Stock'}
           </button>
+        </div>
+      ) : activeTab === 'transfer' ? (
+        /* ==================== STOCK DISTRIBUTION TRANSFER ==================== */
+        <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem', background: '#ffffff' }}>
+          <h2 className="text-gradient" style={{ fontSize: '1.35rem', fontWeight: 800 }}>Distribute Stock to Retail Outlets</h2>
+          <p className="text-secondary" style={{ fontSize: '0.875rem' }}>Deduct stock from Central Warehouse and assign/transfer it to a target retail POS outlet branch.</p>
+
+          {transferSuccess && (
+            <div className="badge badge-success w-full justify-center" style={{ padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.85rem' }}>
+              <CheckCircle size={16} /> {transferSuccess}
+            </div>
+          )}
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Select Warehouse Product to Transfer</label>
+            <select className="form-input" value={transferItemId} onChange={e => { setTransferItemId(e.target.value); setTransferSuccess(null); }}>
+              <option value="">-- Select Product --</option>
+              {inventoryList.map(item => (
+                <option key={item.id} value={item.id}>{item.name} (Available: {item.quantity} units)</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Select Destination Retail Branch Outlet</label>
+            <select className="form-input" value={targetShopId} onChange={e => { setTargetShopId(e.target.value); setTransferSuccess(null); }}>
+              {shops.filter(s => s.id !== currentShop?.id).map(shop => (
+                <option key={shop.id} value={shop.id}>{shop.name} {shop.is_warehouse ? '(Warehouse HQ)' : '(Retail Store)'}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Quantity to Distribute / Transfer</label>
+            <input
+              type="number"
+              className="form-input"
+              value={transferQty}
+              onChange={e => setTransferQty(Math.max(1, Number(e.target.value)))}
+            />
+          </div>
+
+          <button className="btn btn-primary w-full mt-2" onClick={handleStockTransfer} disabled={isSavingTransfer || !transferItemId || !targetShopId}>
+            {isSavingTransfer ? 'Transferring Stock...' : 'Distribute & Increment Destination Stock'}
+          </button>
+        </div>
+      ) : (
+        /* ==================== PRODUCT FLOW ANALYSIS VIEW ==================== */
+        <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', background: '#ffffff' }}>
+          <h2 className="text-gradient" style={{ fontSize: '1.35rem', fontWeight: 800 }}>Product Flow & Inter-Branch Stock Distribution Ledger</h2>
+          <p className="text-secondary" style={{ fontSize: '0.875rem' }}>Track how wholesale inventory catalog items are spread across all retail branches and warehouses.</p>
+
+          <div className="table-container">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>SKU</th>
+                  <th style={{ textAlign: 'center' }}>Warehouse HQ Stock</th>
+                  {shops.filter(s => !s.is_warehouse).map(shop => (
+                    <th key={shop.id} style={{ textAlign: 'center' }}>{shop.name} Stock</th>
+                  ))}
+                  <th style={{ textAlign: 'right' }}>Total Company Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryList.map(item => {
+                  // Find all matching items across all branches (matching SKU or same name)
+                  const matches = globalInventory.filter(
+                    gi => (gi.sku && gi.sku === item.sku) || gi.name.toLowerCase() === item.name.toLowerCase()
+                  );
+
+                  const warehouseQty = item.quantity;
+                  const totalCompanyQty = matches.reduce((sum, curr) => sum + curr.quantity, 0);
+
+                  return (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong></td>
+                      <td><code>{item.sku || 'N/A'}</code></td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>{warehouseQty} units</td>
+                      {shops.filter(s => !s.is_warehouse).map(shop => {
+                        const shopMatch = matches.find(m => m.shop_id === shop.id);
+                        const qty = shopMatch ? shopMatch.quantity : 0;
+                        return (
+                          <td key={shop.id} style={{ textAlign: 'center', fontWeight: 700, color: qty === 0 ? 'var(--text-muted)' : 'var(--primary)' }}>
+                            {qty} units
+                          </td>
+                        );
+                      })}
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--success)' }}>{totalCompanyQty} units</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
