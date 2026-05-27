@@ -94,6 +94,15 @@ const seedMockData = () => {
       avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
       role: 'staff',
       created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-user-super-admin-123',
+      tenant_id: tId,
+      email: 'developer@stitchbill.com',
+      full_name: 'Alex Mercer (Platform Developer)',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      role: 'super_admin',
+      created_at: new Date().toISOString(),
     }
   );
 
@@ -118,6 +127,13 @@ const seedMockData = () => {
       tenant_id: tId,
       profile_id: 'mock-user-cashier-123',
       role: 'staff',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'mock-role-4',
+      tenant_id: tId,
+      profile_id: 'mock-user-super-admin-123',
+      role: 'super_admin',
       created_at: new Date().toISOString(),
     }
   );

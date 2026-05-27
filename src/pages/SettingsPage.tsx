@@ -4,7 +4,7 @@ import { supabase } from '../services/supabase';
 import { Settings as SettingsIcon, Store, Save, Plus, CheckCircle, MessageSquare } from 'lucide-react';
 
 export const SettingsPage = () => {
-  const { tenant, settings, shops, refreshAuthData } = useAuth();
+  const { tenant, settings, shops, profile, refreshAuthData } = useAuth();
   
   // Settings State
   const [companyName, setCompanyName] = useState(settings?.company_name || tenant?.name || '');
@@ -59,6 +59,11 @@ export const SettingsPage = () => {
 
   // ADD NEW OUTLET SHOP/WAREHOUSE
   const handleAddShop = async () => {
+    if (profile?.role !== 'super_admin') {
+      alert('Access Denied! Only the system developer/platform administrator is authorized to provision new shop branches.');
+      return;
+    }
+
     if (!newShopName || !tenant) {
       alert('Please enter a shop branch name.');
       return;
@@ -188,87 +193,105 @@ export const SettingsPage = () => {
 
         {/* Right Column: Outlets Provisioner & Shops list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Add a new branch */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h2 className="text-gradient-blue" style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Store size={18} /> Provision New Shop Outlet
-            </h2>
+          {/* Add a new branch (Restricted to Super Admin Only) */}
+          {profile?.role === 'super_admin' ? (
+            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h2 className="text-gradient-blue" style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Store size={18} /> Provision New Shop Outlet
+              </h2>
 
-            {shopSuccess && (
-              <div style={{ padding: '0.75rem 1rem', background: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '8px', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle size={18} /> New shop outlet successfully provisioned!
-              </div>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">Shop/Warehouse Name *</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. StitchBill Downtown Express"
-                value={newShopName}
-                onChange={e => { setNewShopName(e.target.value); setShopSuccess(false); }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Location Outlet Type</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
-                    <input type="radio" checked={newShopType === 'pos'} onChange={() => setNewShopType('pos')} /> POS Retail Branch
-                  </label>
-                  <label style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.35rem', 
-                    fontSize: '0.9rem', 
-                    cursor: shops.some(s => s.is_warehouse) ? 'not-allowed' : 'pointer',
-                    color: shops.some(s => s.is_warehouse) ? 'var(--text-muted)' : 'inherit',
-                    opacity: shops.some(s => s.is_warehouse) ? 0.5 : 1
-                  }}>
-                    <input 
-                      type="radio" 
-                      checked={newShopType === 'warehouse'} 
-                      disabled={shops.some(s => s.is_warehouse)}
-                      onChange={() => setNewShopType('warehouse')} 
-                    /> Central Warehouse HQ
-                  </label>
+              {shopSuccess && (
+                <div style={{ padding: '0.75rem 1rem', background: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '8px', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle size={18} /> New shop outlet successfully provisioned!
                 </div>
-                {shops.some(s => s.is_warehouse) && (
-                  <span style={{ fontSize: '0.725rem', color: 'var(--warning)', fontWeight: 600, display: 'block', marginTop: '0.1rem' }}>
-                    ⚠️ Central Warehouse already exists. You are allowed only 1 warehouse HQ.
-                  </span>
-                )}
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Shop/Warehouse Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. StitchBill Downtown Express"
+                  value={newShopName}
+                  onChange={e => { setNewShopName(e.target.value); setShopSuccess(false); }}
+                />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label className="form-label">Branch Address</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. 50 Broadway Ave, NYC"
-                value={newShopAddress}
-                onChange={e => setNewShopAddress(e.target.value)}
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Location Outlet Type</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                      <input type="radio" checked={newShopType === 'pos'} onChange={() => setNewShopType('pos')} /> POS Retail Branch
+                    </label>
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.35rem', 
+                      fontSize: '0.9rem', 
+                      cursor: shops.some(s => s.is_warehouse) ? 'not-allowed' : 'pointer',
+                      color: shops.some(s => s.is_warehouse) ? 'var(--text-muted)' : 'inherit',
+                      opacity: shops.some(s => s.is_warehouse) ? 0.5 : 1
+                    }}>
+                      <input 
+                        type="radio" 
+                        checked={newShopType === 'warehouse'} 
+                        disabled={shops.some(s => s.is_warehouse)}
+                        onChange={() => setNewShopType('warehouse')} 
+                      /> Central Warehouse HQ
+                    </label>
+                  </div>
+                  {shops.some(s => s.is_warehouse) && (
+                    <span style={{ fontSize: '0.725rem', color: 'var(--warning)', fontWeight: 600, display: 'block', marginTop: '0.1rem' }}>
+                      ⚠️ Central Warehouse already exists. You are allowed only 1 warehouse HQ.
+                    </span>
+                  )}
+                </div>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">Branch Contact Phone</label>
-              <input
-                type="tel"
-                className="form-input"
-                placeholder="+1 (555) 777-0000"
-                value={newShopPhone}
-                onChange={e => setNewShopPhone(e.target.value)}
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Branch Address</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 50 Broadway Ave, NYC"
+                  value={newShopAddress}
+                  onChange={e => setNewShopAddress(e.target.value)}
+                />
+              </div>
 
-            <button className="btn btn-primary w-full" onClick={handleAddShop} disabled={isSavingShop || !newShopName}>
-              <Plus size={16} /> {isSavingShop ? 'Provisioning...' : 'Provision Outlet'}
-            </button>
-          </div>
+              <div className="form-group">
+                <label className="form-label">Branch Contact Phone</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="+1 (555) 777-0000"
+                  value={newShopPhone}
+                  onChange={e => setNewShopPhone(e.target.value)}
+                />
+              </div>
+
+              <button className="btn btn-primary w-full" onClick={handleAddShop} disabled={isSavingShop || !newShopName}>
+                <Plus size={16} /> {isSavingShop ? 'Provisioning...' : 'Provision Outlet'}
+              </button>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(59, 91, 255, 0.1)', background: 'linear-gradient(135deg, #ffffff, #f0f4ff)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
+                <Store size={20} className="animate-pulse" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Expand Store Network</h3>
+              </div>
+              <p className="text-secondary" style={{ fontSize: '0.85rem', lineHeight: '1.4' }}>
+                You have reached the limit of your current subscription package (**{shops.length} branch locations** active). 
+              </p>
+              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(59, 91, 255, 0.05)', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', border: '1px solid rgba(59,91,255,0.1)' }}>
+                🔒 Provisioning Lock Active
+              </div>
+              <p className="text-secondary" style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+                Please request your system platform administrator (developer) to provision additional Central Warehouses or POS retail outlets for your tenant account.
+              </p>
+            </div>
+          )}
 
           {/* Current list of branches */}
           <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

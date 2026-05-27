@@ -158,10 +158,18 @@ const AuthPage = () => {
               <button 
                 type="button"
                 className="btn btn-secondary w-full"
+                onClick={() => { setEmail('developer@stitchbill.com'); setPassword('password123'); }}
+                style={{ justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: '#f5f3ff', borderColor: 'rgba(139,92,246,0.1)' }}
+              >
+                🛠️ <strong>Platform Developer (Super Admin):</strong> developer@stitchbill.com
+              </button>
+              <button 
+                type="button"
+                className="btn btn-secondary w-full"
                 onClick={() => { setEmail('owner@stitchbill.com'); setPassword('password123'); }}
                 style={{ justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: '#f8fafc', borderColor: 'rgba(59,91,255,0.1)' }}
               >
-                👑 <strong>Owner Admin:</strong> owner@stitchbill.com
+                👑 <strong>Owner Client Admin:</strong> owner@stitchbill.com
               </button>
               <button 
                 type="button"
