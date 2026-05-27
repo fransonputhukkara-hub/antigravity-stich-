@@ -63,6 +63,14 @@ export const SettingsPage = () => {
       alert('Please enter a shop branch name.');
       return;
     }
+    
+    // Enforce business limit: Only 1 Warehouse HQ allowed
+    const warehouseExists = shops.some(s => s.is_warehouse);
+    if (newShopType === 'warehouse' && warehouseExists) {
+      alert('A Central Warehouse HQ already exists! You are only permitted to provision one Warehouse HQ per company workspace.');
+      return;
+    }
+
     setIsSavingShop(true);
     setShopSuccess(false);
     try {
@@ -205,13 +213,33 @@ export const SettingsPage = () => {
 
             <div className="form-group">
               <label className="form-label">Location Outlet Type</label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
-                  <input type="radio" checked={newShopType === 'pos'} onChange={() => setNewShopType('pos')} /> POS Retail Branch
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
-                  <input type="radio" checked={newShopType === 'warehouse'} onChange={() => setNewShopType('warehouse')} /> Central Warehouse HQ
-                </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input type="radio" checked={newShopType === 'pos'} onChange={() => setNewShopType('pos')} /> POS Retail Branch
+                  </label>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem', 
+                    fontSize: '0.9rem', 
+                    cursor: shops.some(s => s.is_warehouse) ? 'not-allowed' : 'pointer',
+                    color: shops.some(s => s.is_warehouse) ? 'var(--text-muted)' : 'inherit',
+                    opacity: shops.some(s => s.is_warehouse) ? 0.5 : 1
+                  }}>
+                    <input 
+                      type="radio" 
+                      checked={newShopType === 'warehouse'} 
+                      disabled={shops.some(s => s.is_warehouse)}
+                      onChange={() => setNewShopType('warehouse')} 
+                    /> Central Warehouse HQ
+                  </label>
+                </div>
+                {shops.some(s => s.is_warehouse) && (
+                  <span style={{ fontSize: '0.725rem', color: 'var(--warning)', fontWeight: 600, display: 'block', marginTop: '0.1rem' }}>
+                    ⚠️ Central Warehouse already exists. You are allowed only 1 warehouse HQ.
+                  </span>
+                )}
               </div>
             </div>
 
